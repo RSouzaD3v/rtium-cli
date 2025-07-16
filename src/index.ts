@@ -1,71 +1,112 @@
 #!/usr/bin/env node
+import { Command } from "commander";
 import inquirer from "inquirer";
-import { WebScraping } from "./actions/WebScraping";
-import { WebScrapingPuppeteer } from "./actions/WebScrapingPuppeteer";
+import chalk from "chalk";
+import { runScrapeCommand } from "./commands/scrape";
+import { loadConfig, saveConfig, showConfig } from "./utils/config";
+import { t } from "./utils/i18n";
 
-async function main() {
-  console.log('✨ Bem-vindo ao meu Ranetium Saas CLI! ✨\n');
+const program = new Command();
 
-  const answersMain = await inquirer.prompt([
-    {
-      type: "list",
-      name: "choice",
-      message: "O que iremos fazer?",
-      choices: ["web-scraping"]
-    }
-  ]);
-  
-  switch (answersMain.choice) {
-    case "web-scraping":
+// ⚡ pega config salvo
+const userConfig = loadConfig();
 
-      const scrapingAnswers = await inquirer.prompt([
+// ⚡ detecta --lang global
+program
+  .name("rtium-cli")
+  .description("🟣 Rtium SaaS CLI - Scraping com IA")
+  .version("1.0.0")
+  .option("--lang <lang>", "Escolhe o idioma (pt|en)");
+
+// ➜ Comando scrape
+program
+  .command("scrape")
+  .description("Faz scraping de uma página e gera análise com IA")
+  .option("--url <url>", t("urlPrompt"))
+  .option("--mode <mode>", t("modePrompt"), "axios")
+  .option("--format <format>", t("formatPrompt"), "html")
+  .option("--instruction <instruction>", t("instructionPrompt"))
+  .action(async (options) => {
+    // ➜ resolve idioma
+    const lang = options.lang || userConfig.lang || "pt";
+
+    // ⚡ FLAGS diretas
+    if (options.url && options.instruction) {
+      await runScrapeCommand({ ...options });
+    } else {
+      // ⚡ Modo interativo
+      console.log(chalk.yellow(`\n⚡ ${t("noFlagsWarning", lang)}\n`));
+      console.log(chalk.cyanBright(t("welcome", lang)));
+      console.log(chalk.magenta(`
+        ██████╗  █████╗ ███╗   ██╗███████╗████████╗██╗██╗   ██╗███╗   ███╗
+        ██╔══██╗██╔══██╗████╗  ██║██╔════╝╚══██╔══╝██║██║   ██║████╗ ████║
+        ██████╔╝███████║██╔██╗ ██║█████╗     ██║   ██║██║   ██║██╔████╔██║
+        ██╔══██╗██╔══██║██║╚██╗██║██╔══╝     ██║   ██║██║   ██║██║╚██╔╝██║
+        ██║  ██║██║  ██║██║ ╚████║███████╗   ██║   ██║╚██████╔╝██║ ╚═╝ ██║
+        ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝     ╚═╝
+    `));
+
+      const answers = await inquirer.prompt([
         {
           type: "input",
           name: "url",
-          message: "Informe a URL para scraping:"
+          message: t("urlPrompt", lang)
         },
         {
           type: "list",
           name: "mode",
-          message: "Qual modo de scraping deseja usar?",
-          choices: ["Estático (Axios)", "Dinâmico (Puppeteer)"]
+          message: t("modePrompt", lang),
+          choices: ["axios", "puppeteer"]
         },
         {
           type: "list",
           name: "format",
-          message: "Em qual formato deseja salvar o HTML renderizado?",
+          message: t("formatPrompt", lang),
           choices: ["html", "md", "txt"]
         },
         {
           type: "checkbox",
           name: "instructions",
-          message: "O que deseja analisar com a IA?",
+          message: t("instructionPrompt", lang),
           choices: [
-            "Analisar contatos relevantes",
-            "Analisar valores de produtos",
-            "O que poderia melhorar o SEO e Performance"
+            t("analyzeContacts", lang),
+            t("analyzePrices", lang),
+            t("analyzeSEO", lang)
           ]
         }
       ]);
 
-      // Convert checkbox array to string
-      const instructionsText = scrapingAnswers.instructions.join(" / ");
+      const instructionsText = answers.instructions.join(" / ");
 
-      // Escolha entre Axios ou Puppeteer
-      if (scrapingAnswers.mode === "Estático (Axios)") {
-        console.log("\n🚀 Iniciando Web Scraping Estático (Axios)...");
-        await WebScraping(scrapingAnswers.url, scrapingAnswers.format, instructionsText);
-      } else {
-        console.log("\n🚀 Iniciando Web Scraping Dinâmico (Puppeteer)...");
-        await WebScrapingPuppeteer(scrapingAnswers.url, scrapingAnswers.format, instructionsText);
+      await runScrapeCommand({
+        url: answers.url,
+        mode: answers.mode,
+        format: answers.format,
+        instruction: instructionsText
+      });
+    }
+  });
+
+// ➜ Comando config
+program
+  .command("config")
+  .description(t("configDescription"))
+  .option("--set <key=value>", t("configSetHelp"))
+  .option("--show", t("configShowHelp"))
+  .action((options) => {
+    if (options.show) {
+      showConfig();
+    } else if (options.set) {
+      const [key, value] = options.set.split("=");
+      if (!key || value === undefined) {
+        console.error(chalk.red(t("invalidSetFormat")));
+        return;
       }
+      saveConfig({ [key]: value });
+      console.log(chalk.green(`${t("configSaved")} ${key}=${value}`));
+    } else {
+      console.log(chalk.gray(t("configUsageHint")));
+    }
+  });
 
-      break;
-
-    default:
-      console.log("\n👋 Finalizando o CLI");
-      break;
-  }
-}
-
-main();
+program.parse();
