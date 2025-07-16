@@ -1,0 +1,30 @@
+{
+  "name": "rtium-cli",
+  "version": "0.1.3",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "ts-node src/index.ts",
+    "build": "tsc"
+  },
+  "bin": {
+    "rtm-cli": "./dist/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/axios": "^0.14.4",
+    "@types/inquirer": "^9.0.8",
+    "@types/node": "^24.0.13",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@google/genai": "^1.9.0",
+    "axios": "^1.10.0",
+    "dotenv": "^17.2.0",
+    "inquirer": "^12.7.0",
+    "puppeteer": "^24.12.1"
+  }
+}
